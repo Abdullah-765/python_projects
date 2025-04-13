@@ -1,118 +1,80 @@
-import json
 
-def load_library(filename):
-    try:
-        with open(filename, 'r') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return []
+import re
+import streamlit as st
+import random
 
-def save_library(library, filename):
-    with open(filename, 'w') as file:
-        json.dump(library, file, indent=4)
+# Constants
+alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+numerics = '1234567890'
+symbols = '!@#$%^&*'
+all_chars = alphabet + numerics + symbols
 
-def add_book(library):
-    title = input("Enter book title: ").strip()
-    author = input("Enter author name: ").strip()
-    try:
-        year = int(input("Enter publication year: ").strip())
-    except ValueError:
-        print("Invalid year. Please enter a number.")
-        return
-    genre = input("Enter genre: ").strip()
-    read_input = input("Have you read this book? (yes/no): ").strip().lower()
-    read = True if read_input == 'yes' else False
+# Password Generator
+def generate_password(length=12):
+    password = [
+        random.choice(alphabet.lower()),
+        random.choice(alphabet.upper()),
+        random.choice(numerics),
+        random.choice(symbols)
+    ]
+    while len(password) < length:
+        password.append(random.choice(all_chars))
+    random.shuffle(password)
+    return ''.join(password)
 
-    book = {
-        'title': title,
-        'author': author,
-        'year': year,
-        'genre': genre,
-        'read': read
-    }
-    library.append(book)
-    print(f"Book '{title}' added successfully.")
+# Password Strength Checker
+def check_password_strength(password):
+    score = 0
+    feedback = []
 
-def remove_book(library):
-    title = input("Enter the title of the book to remove: ").strip()
-    for book in library:
-        if book['title'].lower() == title.lower():
-            library.remove(book)
-            print(f"Book '{title}' removed successfully.")
-            return
-    print(f"No book found with title '{title}'.")
-
-def search_books(library):
-    keyword = input("Enter a keyword to search (title/author): ").strip().lower()
-    results = [book for book in library if keyword in book['title'].lower() or keyword in book['author'].lower()]
-    if results:
-        print(f"Found {len(results)} book(s):")
-        for book in results:
-            print_book(book)
+    if len(password) >= 8:
+        score += 1
     else:
-        print("No matching books found.")
+        feedback.append("❌ Password should be at least 8 characters long.")
 
-def display_books(library):
-    if not library:
-        print("Library is empty.")
-        return
-    print(f"Displaying all {len(library)} book(s):")
-    for book in library:
-        print_book(book)
+    if re.search(r"[A-Z]", password) and re.search(r"[a-z]", password):
+        score += 1
+    else:
+        feedback.append("❌ Include both uppercase and lowercase letters.")
 
-def print_book(book):
-    read_status = 'Read' if book['read'] else 'Unread'
-    print(f"Title: {book['title']}, Author: {book['author']}, Year: {book['year']}, Genre: {book['genre']}, Status: {read_status}")
+    if re.search(r"\d", password):
+        score += 1
+    else:
+        feedback.append("❌ Add at least one number (0–9).")
 
-def display_statistics(library):
-    total = len(library)
-    if total == 0:
-        print("Library is empty.")
-        return
-    read_count = sum(1 for book in library if book['read'])
-    read_percentage = (read_count / total) * 100
-    print(f"Total books: {total}")
-    print(f"Books read: {read_count} ({read_percentage:.2f}%)")
+    if re.search(r"[!@#$%^&*]", password):
+        score += 1
+    else:
+        feedback.append("❌ Include at least one special character (!@#$%^&*).")
 
-def main():
-    filename = 'library.json'
-    library = load_library(filename)
+    if score == 4:
+        return score, "✅ Strong Password!"
+    elif score == 3:
+        return score, "⚠️ Moderate Password - Consider improving it."
+    else:
+        return score, "\n".join(feedback)
 
-    while True:
-        print("\nPersonal Library Manager")
-        print("1. Add a book")
-        print("2. Remove a book")
-        print("3. Search for a book")
-        print("4. Display all books")
-        print("5. Display statistics")
-        print("6. Save library")
-        print("7. Load library")
-        print("8. Exit")
+# Streamlit App
+st.set_page_config(page_title="Password Checker", page_icon="🔒", layout="centered")
+st.title("🔐 Password Strength Checker")
 
-        choice = input("Enter your choice (1-8): ").strip()
+password = st.text_input("Enter your password", type="password")
 
-        if choice == '1':
-            add_book(library)
-        elif choice == '2':
-            remove_book(library)
-        elif choice == '3':
-            search_books(library)
-        elif choice == '4':
-            display_books(library)
-        elif choice == '5':
-            display_statistics(library)
-        elif choice == '6':
-            save_library(library, filename)
-            print("Library saved successfully.")
-        elif choice == '7':
-            library = load_library(filename)
-            print("Library loaded successfully.")
-        elif choice == '8':
-            save_library(library, filename)
-            print("Library saved. Exiting the program.")
-            break
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("Check Password Strength"):
+        score, result = check_password_strength(password)
+        if score == 4:
+            st.success(result)
+        elif score == 3:
+            st.warning(result)
         else:
-            print("Invalid choice. Please enter a number between 1 and 8.")
+            st.error(result)
 
-if __name__ == "__main__":
-    main()
+with col2:
+    if st.button("Generate Strong Password"):
+        gen_pass = generate_password()
+        st.code(gen_pass)
+
+
